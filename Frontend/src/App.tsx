@@ -10,7 +10,10 @@ import CameraStream from './components/CameraStream';
 import { Accessibility, Camera, CameraOff } from 'lucide-react';
 
 // WebSocket URL - connect to cloud backend for real camera detection
-const WS_URL = import.meta.env.VITE_WS_URL || 'wss://gesture-control-dashboard.onrender.com/ws';
+// WebSocket URL - connect to cloud backend for real camera detection
+const rawWsUrl = import.meta.env.VITE_WS_URL || 'wss://gesture-control-dashboard.onrender.com/ws';
+// Ensure reliable WebSocket URL format
+const WS_URL = rawWsUrl.startsWith('ws') ? rawWsUrl : `wss://${rawWsUrl}/ws`;
 
 function App() {
   const { state, lastHeadDirection, notifications, sendMessage, connect, removeNotification } = useWebSocket(WS_URL);
@@ -146,17 +149,16 @@ function App() {
               </h2>
               <button
                 onClick={() => setShowCamera(!showCamera)}
-                className={`flex items-center gap-2 px-3 py-1 rounded text-sm font-medium ${
-                  showCamera 
+                className={`flex items-center gap-2 px-3 py-1 rounded text-sm font-medium ${showCamera
                     ? 'bg-red-100 text-red-700 hover:bg-red-200'
                     : 'bg-green-100 text-green-700 hover:bg-green-200'
-                }`}
+                  }`}
               >
                 {showCamera ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
                 {showCamera ? 'Hide Camera' : 'Show Camera'}
               </button>
             </div>
-            
+
             {showCamera && (
               <div className="grid md:grid-cols-2 gap-6">
                 <CameraStream
@@ -164,25 +166,23 @@ function App() {
                   sendMessage={sendMessage}
                   connected={state.connected}
                 />
-                
+
                 {/* Face Detection Info */}
                 <div className="space-y-4">
                   <h3 className="font-medium text-gray-900">Face Detection Status</h3>
-                  
-                  <div className={`p-3 rounded-lg ${
-                    faceDetectionData?.faces_detected 
+
+                  <div className={`p-3 rounded-lg ${faceDetectionData?.faces_detected
                       ? 'bg-green-50 border border-green-200'
                       : 'bg-red-50 border border-red-200'
-                  }`}>
+                    }`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-3 h-3 rounded-full ${
-                        faceDetectionData?.faces_detected ? 'bg-green-500' : 'bg-red-500'
-                      }`} />
+                      <div className={`w-3 h-3 rounded-full ${faceDetectionData?.faces_detected ? 'bg-green-500' : 'bg-red-500'
+                        }`} />
                       <span className="font-medium">
                         {faceDetectionData?.faces_detected ? 'Face Detected!' : 'Looking for face...'}
                       </span>
                     </div>
-                    
+
                     {faceDetectionData && (
                       <div className="text-sm text-gray-600 space-y-1">
                         <div>Faces found: {faceDetectionData.face_count || 0}</div>
@@ -211,8 +211,8 @@ function App() {
         <div className="grid lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
           {/* Wheelchair Controls */}
           <div className="space-y-6">
-            <WheelchairControls 
-              mode={state.mode} 
+            <WheelchairControls
+              mode={state.mode}
               lastDirection={lastHeadDirection}
               motorSpeed={state.motorSpeed}
               movementIntensity={state.movementIntensity}

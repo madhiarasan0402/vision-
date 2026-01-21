@@ -1,19 +1,41 @@
 services:
+  # Backend Service (Python/Docker)
   - type: web
     name: gesture-control-backend
-    env: python
+    env: docker
     plan: free
-    buildCommand: pip install --upgrade pip && pip install -r backend/requirements.txt
-    startCommand: cd backend && python movements.py
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /health
     envVars:
       - key: PORT
         value: 10000
-      - key: PYTHON_VERSION 
-        value: 3.11.0
       - key: WS_HOST
         value: 0.0.0.0
-    disk:
-      name: models
-      mountPath: /opt/render/project/src/models
-      sizeGB: 1
+
+  # Frontend Service (Static Site)
+  - type: static
+    name: gesture-control-frontend
+    env: static
+    buildCommand: cd Frontend && npm install && npm run build
+    publishDir: Frontend/dist
+    envVars:
+      - key: VITE_WS_URL
+        fromService:
+          type: web
+          name: gesture-control-backend
+          property: host
+          # Note: The frontend code should expect just the host, or we need to format it.
+          # Since Render returns just 'host', we might need to manually set this in the
+          # dashboard to 'wss://...' or ensure the frontend code prepends 'wss://'.
+          # App.tsx handles 'wss://' usually, but 'fromService' returns 'host.com'.
+          # We will set a placeholder and user might need to adjust, OR we use a shell command to construct it.
+          # Easier way: The App.tsx line 13: `import.meta.env.VITE_WS_URL || 'wss://...'`
+          # If we pass just domain, App.tsx might fail if it expects full URL.
+          # Let's fix App.tsx to handle bare domain if needed, or assume manual configuration.
+          # Actually, we can use a value that interpolates.
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: gesture-control-backend
+          property: host
