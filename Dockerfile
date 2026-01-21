@@ -19,7 +19,9 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install Python dependencies
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip uninstall -y opencv-python opencv-contrib-python && \
+    pip install opencv-python-headless
 
 # Copy application code
 COPY backend/ .
