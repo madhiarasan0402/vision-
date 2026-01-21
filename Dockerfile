@@ -1,9 +1,17 @@
+# Stage 1: Build Frontend
+FROM node:18-alpine as frontend_build
+WORKDIR /app/frontend
+COPY Frontend/package*.json ./
+RUN npm ci || npm install
+COPY Frontend/ .
+RUN npm run build
+
+# Stage 2: Backend Runtime
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies for OpenCV and MediaPipe
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
@@ -12,7 +20,6 @@ RUN apt-get update && apt-get install -y \
     libgomp1 \
     libgl1 \
     libglx-mesa0 \
-    libglib2.0-0 \
     libgtk-3-0 \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
@@ -23,16 +30,19 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     pip uninstall -y opencv-python opencv-contrib-python && \
     pip install opencv-contrib-python-headless
 
-# Copy application code
+# Copy Backend Code
 COPY backend/ .
 
-# Download YOLOv8 model if not present (just in case it's needed by other modules)
+# Copy Frontend Build from Stage 1
+COPY --from=frontend_build /app/frontend/dist ./static
+
+# Download YOLOv8 model if not present
 RUN python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8n.pt', 'yolov8n.pt')" || echo "Model download failed, will be downloaded at runtime"
 
 # Expose port
 EXPOSE 10000
 
-# Healthcheck
+# Healthcheck (checks /health endpoint)
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:10000/health').read()" || exit 1
 
 # Set environment variables

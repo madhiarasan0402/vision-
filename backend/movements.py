@@ -623,9 +623,30 @@ async def status_broadcaster():
 
 # Create the web application
 app = web.Application()
-app.router.add_get('/', health_check)
+
 app.router.add_get('/health', health_check)
 app.router.add_get('/ws', websocket_handler)
+
+# Serve Frontend Static Files (if available)
+static_path = os.path.join(os.path.dirname(__file__), 'static')
+if os.path.exists(static_path):
+    log.info(f"📁 Serving static files from {static_path}")
+    
+    # Serve assets
+    assets_path = os.path.join(static_path, 'assets')
+    if os.path.exists(assets_path):
+        app.router.add_static('/assets', assets_path)
+        
+    # Serve main index.html for root and SPA fallback
+    async def index(request):
+        return web.FileResponse(os.path.join(static_path, 'index.html'))
+        
+    app.router.add_get('/', index)
+    # Catch-all for client-side routing (must be last)
+    app.router.add_get('/{tail:.*}', index)
+else:
+    log.info("⚠️ Static files not found - serving API only")
+    app.router.add_get('/', health_check)
 
 async def main():
     runner = web.AppRunner(app)
