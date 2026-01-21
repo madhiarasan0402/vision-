@@ -25,9 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ .
 
 # Download YOLOv8 model if not present (just in case it's needed by other modules)
-RUN python -c "import urllib.request; \
-    try: urllib.request.urlretrieve('https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8n.pt', 'yolov8n.pt') \
-    except: print('Model download skipped')"
+RUN python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8n.pt', 'yolov8n.pt')" || echo "Model download failed, will be downloaded at runtime"
 
 # Expose port
 EXPOSE 10000
