@@ -391,7 +391,10 @@ class HeadMovementDetector:
         self.movement_cooldown = 0.5  # 0.5 second cooldown between movements
         
     def detect_head_movement(self, landmarks):
-        """Detect real head movement direction from face landmarks"""
+        """
+        Detect real head movement direction from face landmarks using Relative Positioning.
+        This allows the user to be anywhere in the frame (not just center).
+        """
         if not landmarks or len(landmarks) == 0:
             return None
             
@@ -406,55 +409,97 @@ class HeadMovementDetector:
             # Get first face landmarks
             face_landmarks = landmarks[0].landmark
             
-            # Key landmark indices for head pose estimation
-            # Nose tip
+            # Key landmark indices
             nose_tip = face_landmarks[1]
-            # Chin
-            chin = face_landmarks[18] 
-            # Forehead center  
+            chin = face_landmarks[152] 
             forehead = face_landmarks[10]
-            # Left face edge
-            left_face = face_landmarks[234]
-            # Right face edge
-            right_face = face_landmarks[454]
+            left_face = face_landmarks[234]  # User's right (Image Left)
+            right_face = face_landmarks[454] # User's left (Image Right)
             
-            # Calculate head orientation
-            # Left/Right movement: compare left and right face edges
-            left_right_diff = right_face.x - left_face.x
-            head_center_x = (left_face.x + right_face.x) / 2
+            # 1. Calculate Face Width and Height
+            face_width = abs(right_face.x - left_face.x)
+            face_height = abs(chin.y - forehead.y)
             
-            # Up/Down movement: compare nose tip and chin positions
-            nose_chin_diff = chin.y - nose_tip.y
-            head_center_y = (nose_tip.y + chin.y) / 2
+            if face_width == 0 or face_height == 0:
+                return None
+
+            # 2. Calculate Relative Nose Position (Yaw-like)
+            # 0.0 = Left Face Edge, 1.0 = Right Face Edge
+            # Normal range is roughly 0.5 when facing forward
+            # Moving head RIGHT (User's Right) -> Nose moves Left in image -> Ratio decreases
+            # Moving head LEFT (User's Left) -> Nose moves Right in image -> Ratio increases
+            relative_x = (nose_tip.x - left_face.x) / face_width
+            
+            # 3. Calculate Relative Nose/Chin Position (Pitch-like)
+            # 0.0 = Forehead, 1.0 = Chin
+            # Moving head UP/FORWARD -> Chin moves up relative to nose?
+            # Actually, standard "Pitch":
+            # Look Up: Nose gets closer to forehead (in 2D projection usually).
+            # Look Down: Nose gets closer to chin.
+            # But "Forward" usually means "Lean Forward" or "Move Entire Head Up".
+            # The previous logic used absolute Y. Let's use Nose Y relative to screen to keep "Move Head Up/Down" intuitive if they physically move up/down.
+            # BUT, to be robust to sitting position, we should use Pitch or "Chin height relative to face center".
+            # Let's use a hybrid: Relative Y within the face box helps detect TILT, but Absolute Y helps detect POSITION.
+            # User request: "if up the arrow should go up".
+            # Let's stick to the RELATIVE Y of the nose within the face bounding box if we want pure head tilt (Pitch).
+            # Inspecting standard behaviour:
+            # Look Up: Nose y decreases (moves up). Forehead moves up. Chin moves up.
+            # Use nose_tip.y relative to image? No, that fails if camera is high/low.
+            # Let's use Scale-Normalized Center.
+            # Center of gravity of face:
+            face_center_y = (forehead.y + chin.y) / 2
+            
+            # If user "Moves Up" (physically stands/sits taller), face_center_y decreases.
+            # If user "Looks Up" (Pitch), the ratio of nose-to-forehead distance vs nose-to-chin distance changes.
+            
+            # Let's assume the user wants "Look/Point Head" direction.
+            # LEFT/RIGHT is definitely Yaw-based (Relative X).
             
             direction = None
             motor_speed = 0.0
             movement_intensity = 0.0
             
-            # Detect left/right head tilt
-            if head_center_x < 0.48:  # Head tilted right (person's right)
+            # --- LEFT / RIGHT (YAW) ---
+            # Thresholds: Center is ~0.5.
+            # Turn Right -> < 0.40 (Nose close to left edge)
+            # Turn Left  -> > 0.60 (Nose close to right edge)
+            
+            # Note: Mirroring means User Right -> Image Left.
+            if relative_x < 0.35: # Strong Turn Right
                 direction = 'RIGHT'
-                motor_speed = min(0.8, (0.5 - head_center_x) * 4)
-                movement_intensity = min(0.9, (0.5 - head_center_x) * 5)
+                intensity = (0.35 - relative_x) * 3 # Scale 0.0-0.35 -> 0-1
+                motor_speed = min(0.9, 0.3 + intensity)
+                movement_intensity = min(1.0, intensity * 2)
                 
-            elif head_center_x > 0.52:  # Head tilted left (person's left) 
+            elif relative_x > 0.65: # Strong Turn Left
                 direction = 'LEFT'
-                motor_speed = min(0.8, (head_center_x - 0.5) * 4)
-                movement_intensity = min(0.9, (head_center_x - 0.5) * 5)
+                intensity = (relative_x - 0.65) * 3
+                motor_speed = min(0.9, 0.3 + intensity)
+                movement_intensity = min(1.0, intensity * 2)
                 
-            # Detect forward/backward head movement
-            elif head_center_y < 0.48:  # Head moved up (forward)
-                direction = 'FORWARD' 
-                motor_speed = min(0.8, (0.5 - head_center_y) * 4)
-                movement_intensity = min(0.9, (0.5 - head_center_y) * 5)
-                
-            elif head_center_y > 0.52:  # Head moved down (backward)
-                direction = 'BACKWARD'
-                motor_speed = min(0.8, (head_center_y - 0.5) * 4) 
-                movement_intensity = min(0.9, (head_center_y - 0.5) * 5)
-                
-            # If no significant movement, return STOP
+            # --- UP / DOWN (FORWARD/BACKWARD) ---
+            # Using simple vertical position in frame is easiest for "Move Up/Down".
+            # But let's verify if "Tilt Up" (Pitch) is better.
+            # If Tilt Up, nose rises.
+            # Let's use Face Center Y. 0 is Top.
+            # If face is in TOP 35% of screen -> UP.
+            # If face is in BOTTOM 35% of screen -> DOWN.
+            # This requires user to move head physically up/down.
             else:
+                if face_center_y < 0.35: # Moved Up
+                    direction = 'FORWARD' # Forward maps to UP arrow usually
+                    intensity = (0.35 - face_center_y) * 3
+                    motor_speed = min(0.9, 0.3 + intensity)
+                    movement_intensity = min(1.0, intensity * 2)
+                    
+                elif face_center_y > 0.65: # Moved Down
+                    direction = 'BACKWARD' # Backward maps to DOWN arrow
+                    intensity = (face_center_y - 0.65) * 3
+                    motor_speed = min(0.9, 0.3 + intensity)
+                    movement_intensity = min(1.0, intensity * 2)
+            
+            # If no significant movement, return STOP
+            if direction is None:
                 if self.last_direction != 'STOP':
                     direction = 'STOP'
                     motor_speed = 0.0
@@ -467,6 +512,8 @@ class HeadMovementDetector:
                 self.last_direction = direction
                 self.last_movement_time = current_time
                 
+                log.info(f"🎯 Movement Detected: {direction} (RelX: {relative_x:.2f}, Y: {face_center_y:.2f})")
+                
                 return {
                     'direction': direction,
                     'motor_speed': motor_speed,
@@ -475,6 +522,11 @@ class HeadMovementDetector:
                     'total_distance': 25.5,     # Static for demo
                     'session_time': int(current_time % 3600)
                 }
+                    
+        except Exception as e:
+            log.error(f"Head movement detection error: {e}")
+            
+        return None
                     
         except Exception as e:
             log.error(f"Head movement detection error: {e}")

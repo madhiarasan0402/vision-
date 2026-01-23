@@ -36,8 +36,8 @@ COPY backend/ .
 # Copy Frontend Build from Stage 1
 COPY --from=frontend_build /app/frontend/dist ./static
 
-# Download YOLOv8 model if not present
-RUN python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8n.pt', 'yolov8n.pt')" || echo "Model download failed, will be downloaded at runtime"
+# YOLO model download removed - not used
+# RUN python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8n.pt', 'yolov8n.pt')" || echo "Model download failed, will be downloaded at runtime"
 
 # Expose port
 EXPOSE 10000
