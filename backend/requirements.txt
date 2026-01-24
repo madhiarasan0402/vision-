@@ -1,8 +1,8 @@
 # Render-Compatible MediaPipe Requirements
 # opencv-contrib-python-headless>=4.9.0.80
-mediapipe>=0.10.9
+mediapipe==0.10.14
 aiohttp>=3.9.3
-numpy>=1.26.4
+numpy<2.0.0
 websockets>=12.0
 aiohttp-cors>=0.7.0
 
