@@ -682,7 +682,9 @@ cors = aiohttp_cors.setup(app, defaults={
 })
 
 app.router.add_get('/health', health_check)
-app.router.add_get('/ws', websocket_handler)
+ws_resource = cors.add(app.router.add_resource("/ws"))
+ws_route = ws_resource.add_route("GET", websocket_handler)
+cors.add(ws_route)
 
 # Serve Frontend Static Files (if available)
 static_path = os.path.join(os.path.dirname(__file__), 'static')
