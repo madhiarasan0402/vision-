@@ -668,8 +668,18 @@ async def status_broadcaster():
                     dead_clients.add(ws)
             connected_clients -= dead_clients
 
-# Create the web application
+# Create the web application with CORS enabled
 app = web.Application()
+
+# Enable CORS for all routes
+import aiohttp_cors
+cors = aiohttp_cors.setup(app, defaults={
+    "*": aiohttp_cors.ResourceOptions(
+        allow_credentials=True,
+        expose_headers="*",
+        allow_headers="*",
+    )
+})
 
 app.router.add_get('/health', health_check)
 app.router.add_get('/ws', websocket_handler)
