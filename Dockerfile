@@ -12,6 +12,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
@@ -21,14 +22,18 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     libglx-mesa0 \
     libgtk-3-0 \
+    libgl1-mesa-glx \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip uninstall -y opencv-python opencv-contrib-python && \
+    pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless && \
     pip install opencv-contrib-python-headless
+
+# Verify cv2 installation
+RUN python -c "import cv2; print(f'OpenCV version: {cv2.__version__}')"
 
 # Copy Backend Code
 COPY backend/ .
