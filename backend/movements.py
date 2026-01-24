@@ -527,11 +527,6 @@ class HeadMovementDetector:
             log.error(f"Head movement detection error: {e}")
             
         return None
-                    
-        except Exception as e:
-            log.error(f"Head movement detection error: {e}")
-            
-        return None
 
 blink_detector = BlinkDetector()
 head_movement_detector = HeadMovementDetector()
