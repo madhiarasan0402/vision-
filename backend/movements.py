@@ -461,40 +461,33 @@ class HeadMovementDetector:
             
             # --- LEFT / RIGHT (YAW) ---
             # Thresholds: Center is ~0.5.
-            # Turn Right -> < 0.40 (Nose close to left edge)
-            # Turn Left  -> > 0.60 (Nose close to right edge)
+            # Turn Right -> < 0.42 (Nose close to left edge)
+            # Turn Left  -> > 0.58 (Nose close to right edge)
             
             # Note: Mirroring means User Right -> Image Left.
-            if relative_x < 0.35: # Strong Turn Right
+            if relative_x < 0.42: # Turn Right
                 direction = 'RIGHT'
-                intensity = (0.35 - relative_x) * 3 # Scale 0.0-0.35 -> 0-1
+                intensity = (0.42 - relative_x) * 3 
                 motor_speed = min(0.9, 0.3 + intensity)
                 movement_intensity = min(1.0, intensity * 2)
                 
-            elif relative_x > 0.65: # Strong Turn Left
+            elif relative_x > 0.58: # Turn Left
                 direction = 'LEFT'
-                intensity = (relative_x - 0.65) * 3
+                intensity = (relative_x - 0.58) * 3
                 motor_speed = min(0.9, 0.3 + intensity)
                 movement_intensity = min(1.0, intensity * 2)
                 
             # --- UP / DOWN (FORWARD/BACKWARD) ---
-            # Using simple vertical position in frame is easiest for "Move Up/Down".
-            # But let's verify if "Tilt Up" (Pitch) is better.
-            # If Tilt Up, nose rises.
-            # Let's use Face Center Y. 0 is Top.
-            # If face is in TOP 35% of screen -> UP.
-            # If face is in BOTTOM 35% of screen -> DOWN.
-            # This requires user to move head physically up/down.
             else:
-                if face_center_y < 0.35: # Moved Up
-                    direction = 'FORWARD' # Forward maps to UP arrow usually
-                    intensity = (0.35 - face_center_y) * 3
+                if face_center_y < 0.40: # Moved Up
+                    direction = 'FORWARD' 
+                    intensity = (0.40 - face_center_y) * 3
                     motor_speed = min(0.9, 0.3 + intensity)
                     movement_intensity = min(1.0, intensity * 2)
                     
-                elif face_center_y > 0.65: # Moved Down
-                    direction = 'BACKWARD' # Backward maps to DOWN arrow
-                    intensity = (face_center_y - 0.65) * 3
+                elif face_center_y > 0.60: # Moved Down
+                    direction = 'BACKWARD' 
+                    intensity = (face_center_y - 0.60) * 3
                     motor_speed = min(0.9, 0.3 + intensity)
                     movement_intensity = min(1.0, intensity * 2)
             
