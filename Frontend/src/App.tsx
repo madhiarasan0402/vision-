@@ -172,6 +172,7 @@ function App() {
                   onFaceDetection={handleFaceDetection}
                   sendMessage={sendMessage}
                   connected={state.connected}
+                  serverFaceDetected={state.faceTracking}
                 />
 
                 {/* Face Detection Info */}

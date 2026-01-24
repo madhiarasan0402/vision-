@@ -232,11 +232,11 @@ face_detector = FaceDetector()
 class BlinkDetector:
     def __init__(self):
         self.blink_threshold = 0.25
-        self.long_blink_threshold = 2.0  # Increase to 2.0 seconds for long blink
-        self.double_blink_window = 4.0   # Increase to 4 seconds between double blinks
+        self.long_blink_threshold = 1.5  # Reduce slightly for responsiveness
+        self.double_blink_window = 2.0   # 2 seconds is more natural for double blink
         
         self.last_blink_time = 0
-        self.blink_cooldown = 0.1  # Reduce cooldown to 0.1 seconds 
+        self.blink_cooldown = 0.25  # Increased cooldown to prevent double triggers
         self.pending_first_blink = False
         self.first_blink_time = 0
         
@@ -246,7 +246,7 @@ class BlinkDetector:
         
         # EAR tracking
         self.ear_history = []
-        self.ear_threshold = 0.21
+        self.ear_threshold = 0.26 # Increased for more sensitivity
         
     def calculate_ear(self, landmarks):
         """Calculate Eye Aspect Ratio from face landmarks"""
@@ -541,8 +541,8 @@ async def websocket_handler(request):
                     # Process camera frame for face detection
                     image_data = data.get('image')
                     if image_data:
-                        log.info("📩 Received camera frame for processing")
                         result = face_detector.detect_faces(image_data)
+                        log.info(f"📸 Frame processed. Detected: {result['faces_detected']} (Faces: {result['face_count']})")
                         
                         # Send back face detection results
                         await ws.send_json({

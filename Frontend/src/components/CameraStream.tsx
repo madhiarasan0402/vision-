@@ -4,13 +4,13 @@ interface CameraStreamProps {
   onFaceDetection?: (result: any) => void;
   sendMessage?: (message: any) => void;
   connected?: boolean;
+  serverFaceDetected?: boolean;
 }
 
-const CameraStream = ({ onFaceDetection, sendMessage, connected }: CameraStreamProps) => {
+const CameraStream = ({ onFaceDetection, sendMessage, connected, serverFaceDetected }: CameraStreamProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [faceDetected, setFaceDetected] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
@@ -31,13 +31,13 @@ const CameraStream = ({ onFaceDetection, sendMessage, connected }: CameraStreamP
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          width: 640, 
+        video: {
+          width: 640,
           height: 480,
           frameRate: 15
         }
       });
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
@@ -99,28 +99,6 @@ const CameraStream = ({ onFaceDetection, sendMessage, connected }: CameraStreamP
     }
   };
 
-  // Handle face detection results from backend
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'face_detection_result') {
-          setFaceDetected(data.payload.faces_detected);
-          onFaceDetection?.(data.payload);
-        }
-      } catch (e) {
-        // Ignore non-JSON messages
-      }
-    };
-
-    // This is a simplified approach - in real implementation, 
-    // you'd get this through the WebSocket hook
-    if (typeof window !== 'undefined') {
-      window.addEventListener('message', handleMessage);
-      return () => window.removeEventListener('message', handleMessage);
-    }
-  }, [onFaceDetection]);
-
   return (
     <div className="camera-stream relative">
       <div className="relative rounded-lg overflow-hidden bg-gray-900">
@@ -130,22 +108,20 @@ const CameraStream = ({ onFaceDetection, sendMessage, connected }: CameraStreamP
           muted
           playsInline
         />
-        
+
         {/* Face detection indicator */}
-        <div className={`absolute top-2 left-2 px-2 py-1 rounded text-xs font-bold ${
-          faceDetected 
-            ? 'bg-green-500 text-white' 
-            : 'bg-red-500 text-white'
-        }`}>
-          {faceDetected ? '👁️ Face Detected' : '🔍 Looking for face...'}
+        <div className={`absolute top-2 left-2 px-2 py-1 rounded text-xs font-bold ${serverFaceDetected
+          ? 'bg-green-500 text-white'
+          : 'bg-red-500 text-white'
+          }`}>
+          {serverFaceDetected ? '👁️ Face Detected' : '🔍 Looking for face...'}
         </div>
 
         {/* Connection status */}
-        <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs ${
-          connected && isStreaming
-            ? 'bg-blue-500 text-white'
-            : 'bg-gray-500 text-white'
-        }`}>
+        <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs ${connected && isStreaming
+          ? 'bg-blue-500 text-white'
+          : 'bg-gray-500 text-white'
+          }`}>
           {connected && isStreaming ? '🔴 LIVE' : '⭕ Offline'}
         </div>
 
@@ -158,7 +134,7 @@ const CameraStream = ({ onFaceDetection, sendMessage, connected }: CameraStreamP
 
       <div className="mt-2 text-center">
         <p className="text-sm text-gray-600">
-          {isStreaming 
+          {isStreaming
             ? `📷 Camera active • ${connected ? 'Processing frames' : 'Waiting for connection'}`
             : '📷 Camera starting...'
           }
